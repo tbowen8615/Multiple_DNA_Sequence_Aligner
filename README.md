@@ -1,5 +1,5 @@
 # Multiple_DNA_Sequence_Aligner
-A collection of the files needed to demonstrate multiple sequence alignment. 
+A collection of the files needed to demonstrate multiple sequence alignment.  
 Usage: Download all files included in this repository to a directory on your computer. In the Command Prompt, navigate to this directory, then enter following command:
                        python Multiple_Sequence_Aligner.py -i MSA_input.fasta -o MSA_complete.fasta -s BLOSUM50.mtx
                         
