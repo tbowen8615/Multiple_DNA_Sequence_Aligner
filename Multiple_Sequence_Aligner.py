@@ -329,7 +329,7 @@ def main():
         # Initialize matrices to store the alignment scores and normalized scores
         num_sequences = len(sequences)
         score_matrix = np.zeros((num_sequences, num_sequences), dtype=int)
-        normalized_score_matrix = np.zeros((num_sequences, num_sequences), dtype=float)
+        normalized_distance_matrix = np.zeros((num_sequences, num_sequences), dtype=float)
         aligned_pairs = []
 
         # Perform alignment for every pair of sequences
@@ -339,32 +339,45 @@ def main():
             Smin_scaled = Smin * alignment_length
             Smax_scaled = Smax * alignment_length
             normalized_score = calculate_normalized_score(score, Smin_scaled, Smax_scaled)
-            normalized_score_matrix[i, j] = normalized_score
-            normalized_score_matrix[j, i] = normalized_score  # Populate both upper and lower triangle
+            normalized_distance_matrix[i, j] = normalized_score
+            normalized_distance_matrix[j, i] = normalized_score  # Populate both upper and lower triangle
             aligned_pairs.append((i, j, align1, align2, score, normalized_score, alignment_length, Smin_scaled, Smax_scaled))
 
-        # Construct guide tree
-        guide_tree = construct_guide_tree(normalized_score_matrix)
-
         # Print the alignment score matrix
-        print("Initial Distance Matrix:")
+        print("Initial Distance Matrix\n")
         for i in range(num_sequences):
             for j in range(num_sequences):
                 if j > i:
-                    print(f"{score_matrix[i, j]:5}", end=" ")
+                        print(f"{score_matrix[i, j]:5}", end=" ")
                 else:
                     print("     ", end=" ")
             print()
 
+        # Print Raw normalized_distance_matrix
+        print("\nRaw Normalized Distance Matrix\n")
+        print(normalized_distance_matrix)
+        print("\n")
+
+        for i in range(num_sequences):
+            for j in range(i + 1):
+                normalized_distance_matrix[i, j] = np.inf
+
+        # Print Raw Normalized Score Matrix
+        print("Raw Normalized Distance Matrix\n")
+        print(normalized_distance_matrix)
+        print("\n")
+
         # Print the normalized score matrix
-        print("\nNormalized Distance Matrix:")
+        print("\nNormalized Distance Matrix\n")
         for i in range(num_sequences):
             for j in range(num_sequences):
                 if j > i:
-                    print(f"{normalized_score_matrix[i, j]:>10.4f}", end=" ")
+                    print(f"{normalized_distance_matrix[i, j]:>10.4f}", end=" ")
                 else:
                     print(f"{'':>10}", end=" ")
             print()
+
+        guide_tree = construct_guide_tree(normalized_distance_matrix)
 
         # Print each aligned pair
         print("\nAligned sequence pairs:")
