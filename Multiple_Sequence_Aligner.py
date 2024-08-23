@@ -68,7 +68,7 @@ def print_scoring_matrix(scoring_matrix):
     # Extract unique elements
     elements = sorted(set([key[0] for key in scoring_matrix.keys()] + [key[1] for key in scoring_matrix.keys()]))
     # Print the header row
-    print("Scoring Matrix\n")
+    print("\n\nScoring Matrix\n")
     print("    " + " ".join(f"{el:>4}" for el in elements))
     for el1 in elements:
         row = [f"{el1:>4}"]
@@ -78,7 +78,7 @@ def print_scoring_matrix(scoring_matrix):
     print("\n")
 
 
-# Implement the Needleman-Wunsch algorithm
+# Implement the Needleman-Wunsch optimal global alignment algorithm
 def needleman_wunsch(seq1, seq2, scoring_matrix):
     m, n = len(seq1), len(seq2)
 
@@ -128,12 +128,12 @@ def needleman_wunsch(seq1, seq2, scoring_matrix):
     return align1, align2, F[m, n], alignment_length
 
 
-# Calculate the normalized score
-def calculate_normalized_score(Sa, Smin, Smax):
+# Calculate the normalized distance
+def calculate_normalized_distance(Sa, Smin, Smax):
     if Smax == Smin:
         return 0  # Avoid division by zero
-    normalized_score = (-1) * math.log((Sa - Smin) / (Smax - Smin))
-    return normalized_score
+    normalized_distance = (-1) * math.log((Sa - Smin) / (Smax - Smin))
+    return normalized_distance
 
 
 # Construct guide tree
@@ -180,7 +180,7 @@ def construct_guide_tree(normalized_distance_matrix):
 
     return guide_tree
 
-
+# Align Sequence to MSA
 def align_sequence_with_msa(seq, msa, scoring_matrix):
     best_score = float('-inf')
     best_alignment = None
@@ -253,6 +253,7 @@ def align_msa_with_msa(msa1, msa2, scoring_matrix):
 def replace_xs_with_gaps(msa):
     return [seq.replace('X', '-') for seq in msa]
 
+# Progressive Alignment
 def progressive_alignment(sequences, guide_tree, scoring_matrix):
     # Initialize clusters with individual sequences
     clusters = [[seq] for seq in sequences]
@@ -308,13 +309,19 @@ def sum_of_pairs(final_msa, scoring_matrix):
 
 
 def main():
-    print("\nMultiple Sequence Alignment Initiated\n")
     try:
         input_fp = sys.argv[sys.argv.index('-i') + 1]
         output_fp = sys.argv[sys.argv.index('-o') + 1]
         scoring_matrix_fp = sys.argv[sys.argv.index('-s') + 1]
         headers, sequences = read_fasta(input_fp)
         scoring_matrix = read_scoring_matrix(scoring_matrix_fp)
+
+        # Print the input sequences
+        print("\nInput Sequences\n")
+        with open(input_fp,'r') as file:
+            for line in file:
+                print(line, end='')
+
 
         # Print the scoring matrix
         print_scoring_matrix(scoring_matrix)
@@ -336,15 +343,15 @@ def main():
             score_matrix[i, j] = score
             Smin_scaled = Smin * alignment_length
             Smax_scaled = Smax * alignment_length
-            normalized_score = calculate_normalized_score(score, Smin_scaled, Smax_scaled)
-            normalized_distance_matrix[i, j] = normalized_score
-            normalized_distance_matrix[j, i] = normalized_score  # Populate both upper and lower triangle
-            aligned_pairs.append((i, j, align1, align2, score, normalized_score, alignment_length, Smin_scaled, Smax_scaled))
+            normalized_distance = calculate_normalized_distance(score, Smin_scaled, Smax_scaled)
+            normalized_distance_matrix[i, j] = normalized_distance
+            normalized_distance_matrix[j, i] = normalized_distance  # Populate both upper and lower triangle
+            aligned_pairs.append((i, j, align1, align2, score, normalized_distance, alignment_length, Smin_scaled, Smax_scaled))
 
         # Print each aligned pair
         print("\nAligned sequence pairs:")
         for (
-                i, j, align1, align2, score, normalized_score, alignment_length, Smin_scaled,
+                i, j, align1, align2, score, normalized_distance, alignment_length, Smin_scaled,
                 Smax_scaled) in aligned_pairs:
             print(f"\nAlignment of {headers[i]} and {headers[j]}:")
             print(f"{headers[i]}: {align1}")
@@ -353,10 +360,10 @@ def main():
             print(f"Alignment Length: {alignment_length}")
             print(f"Min Possible Alignment Score: {Smin_scaled}")
             print(f"Max Possible Alignment Score: {Smax_scaled}")
-            print(f"Normalized Score: {normalized_score}")
+            print(f"Normalized Distance: {normalized_distance}")
 
         # Print the alignment score matrix
-        print("\nInitial Distance Matrix (uses each pair's Alignment Score)\n")
+        print("\n\nInitial Distance Matrix (uses each pair's Alignment Score)\n")
         for i in range(num_sequences):
             for j in range(num_sequences):
                 if j > i:
@@ -375,12 +382,12 @@ def main():
                 normalized_distance_matrix[i, j] = np.inf
 
         # Print Raw Normalized Score Matrix
-        print("Raw Normalized Distance Matrix\n")
+        print("Normalized Distance Matrix (sent to construct_guide_tree)\n")
         print(normalized_distance_matrix)
         print("\n")
 
         # Print the normalized score matrix
-        print("\nNormalized Distance Matrix (uses each pair's Normalized Score)\n")
+        print("\nFormatted Normalized Distance Matrix (uses each pair's Normalized Distance)\n")
         for i in range(num_sequences):
             for j in range(num_sequences):
                 if j > i:
