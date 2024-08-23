@@ -68,7 +68,7 @@ def print_scoring_matrix(scoring_matrix):
     # Extract unique elements
     elements = sorted(set([key[0] for key in scoring_matrix.keys()] + [key[1] for key in scoring_matrix.keys()]))
     # Print the header row
-    print("Scoring Matrix:")
+    print("Scoring Matrix\n")
     print("    " + " ".join(f"{el:>4}" for el in elements))
     for el1 in elements:
         row = [f"{el1:>4}"]
@@ -137,25 +137,23 @@ def calculate_normalized_score(Sa, Smin, Smax):
 
 
 # Construct guide tree
-def construct_guide_tree(distance_matrix):
-    # Replace None with np.inf to represent infinite distances
-    distance_matrix = np.array([[np.inf if x is None else x for x in row] for row in distance_matrix], dtype=float)
+def construct_guide_tree(normalized_distance_matrix):
 
-    cluster_sizes = [1] * len(distance_matrix)
-    labels = [(i,) for i in range(len(distance_matrix))]  # Initialize labels as tuples containing single integers
+    cluster_sizes = [1] * len(normalized_distance_matrix)
+    labels = [(i,) for i in range(len(normalized_distance_matrix))]  # Initialize labels as tuples containing single integers
 
     guide_tree = []
 
-    while distance_matrix.shape[0] > 1:
+    while normalized_distance_matrix.shape[0] > 1:
         # Initialize variables to store the minimum distance and corresponding indices
         min_distance = np.inf
         closest_pair = None
 
         # Iterate through the upper triangular part of the matrix to find the minimum distance
-        for i in range(len(distance_matrix)):
-            for j in range(i + 1, len(distance_matrix)):
-                if distance_matrix[i, j] < min_distance:
-                    min_distance = distance_matrix[i, j]
+        for i in range(len(normalized_distance_matrix)):
+            for j in range(i + 1, len(normalized_distance_matrix)):
+                if normalized_distance_matrix[i, j] < min_distance:
+                    min_distance = normalized_distance_matrix[i, j]
                     closest_pair = (i, j)
 
         i, j = closest_pair
@@ -164,10 +162,10 @@ def construct_guide_tree(distance_matrix):
         guide_tree.append((labels[i][0], labels[j][0]))
 
         # Calculate the new distances
-        for k in range(len(distance_matrix)):
+        for k in range(len(normalized_distance_matrix)):
             if k != i and k != j:
-                distance_matrix[min(i, k), max(i, k)] = (distance_matrix[min(i, k), max(i, k)] * cluster_sizes[i] +
-                                                         distance_matrix[min(j, k), max(j, k)] * cluster_sizes[j]) / (
+                normalized_distance_matrix[min(i, k), max(i, k)] = (normalized_distance_matrix[min(i, k), max(i, k)] * cluster_sizes[i] +
+                                                         normalized_distance_matrix[min(j, k), max(j, k)] * cluster_sizes[j]) / (
                                                                 cluster_sizes[i] + cluster_sizes[j])
 
         # Merge clusters
@@ -175,8 +173,8 @@ def construct_guide_tree(distance_matrix):
         cluster_sizes[i] += cluster_sizes[j]
 
         # Remove the merged node's row and column (node j)
-        distance_matrix = np.delete(distance_matrix, j, axis=0)
-        distance_matrix = np.delete(distance_matrix, j, axis=1)
+        normalized_distance_matrix = np.delete(normalized_distance_matrix, j, axis=0)
+        normalized_distance_matrix = np.delete(normalized_distance_matrix, j, axis=1)
         del labels[j]
         del cluster_sizes[j]
 
@@ -310,7 +308,7 @@ def sum_of_pairs(final_msa, scoring_matrix):
 
 
 def main():
-    print("Assignment 4 :: R11474743")
+    print("\nMultiple Sequence Alignment Initiated\n")
     try:
         input_fp = sys.argv[sys.argv.index('-i') + 1]
         output_fp = sys.argv[sys.argv.index('-o') + 1]
@@ -343,8 +341,22 @@ def main():
             normalized_distance_matrix[j, i] = normalized_score  # Populate both upper and lower triangle
             aligned_pairs.append((i, j, align1, align2, score, normalized_score, alignment_length, Smin_scaled, Smax_scaled))
 
+        # Print each aligned pair
+        print("\nAligned sequence pairs:")
+        for (
+                i, j, align1, align2, score, normalized_score, alignment_length, Smin_scaled,
+                Smax_scaled) in aligned_pairs:
+            print(f"\nAlignment of {headers[i]} and {headers[j]}:")
+            print(f"{headers[i]}: {align1}")
+            print(f"{headers[j]}: {align2}")
+            print(f"Alignment Score: {score}")
+            print(f"Alignment Length: {alignment_length}")
+            print(f"Min Possible Alignment Score: {Smin_scaled}")
+            print(f"Max Possible Alignment Score: {Smax_scaled}")
+            print(f"Normalized Score: {normalized_score}")
+
         # Print the alignment score matrix
-        print("Initial Distance Matrix\n")
+        print("\nInitial Distance Matrix (uses each pair's Alignment Score)\n")
         for i in range(num_sequences):
             for j in range(num_sequences):
                 if j > i:
@@ -368,7 +380,7 @@ def main():
         print("\n")
 
         # Print the normalized score matrix
-        print("\nNormalized Distance Matrix\n")
+        print("\nNormalized Distance Matrix (uses each pair's Normalized Score)\n")
         for i in range(num_sequences):
             for j in range(num_sequences):
                 if j > i:
@@ -378,20 +390,6 @@ def main():
             print()
 
         guide_tree = construct_guide_tree(normalized_distance_matrix)
-
-        # Print each aligned pair
-        print("\nAligned sequence pairs:")
-        for (
-                i, j, align1, align2, score, normalized_score, alignment_length, Smin_scaled,
-                Smax_scaled) in aligned_pairs:
-            print(f"\nAlignment between {headers[i]} and {headers[j]}:")
-            print(f"{headers[i]}: {align1}")
-            print(f"{headers[j]}: {align2}")
-            print(f"Score: {score}")
-            print(f"Alignment Length: {alignment_length}")
-            print(f"Smin: {Smin_scaled}")
-            print(f"Smax: {Smax_scaled}")
-            print(f"Normalized Score: {normalized_score}")
 
         # Print the guide tree
         print("\nGuide Tree:")
