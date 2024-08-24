@@ -274,9 +274,12 @@ def progressive_alignment(sequences, guide_tree, scoring_matrix):
     # Initialize clusters with individual sequences
     clusters = [[seq] for seq in sequences]
     cluster_map = {i: i for i in range(len(clusters))}
+    print("clusters: " + str(clusters))
+    print("cluster_map: " + str(cluster_map) + "\n")
 
     # Flatten the guide tree
     flat_guide_tree = flatten_guide_tree(guide_tree)
+    print("flat_guide_tree: " + str(flat_guide_tree) + "\n")
 
     for pair in flat_guide_tree:
         i, j = pair
@@ -290,26 +293,34 @@ def progressive_alignment(sequences, guide_tree, scoring_matrix):
 
         if len(cluster_i) == 1 and len(cluster_j) == 1:
             # Sequence to sequence alignment
-            print(f"Alignment Type: sequence " + str(cluster_i) + " to sequence " + str(cluster_j) + "\n")
+            print(f"Alignment Type: sequence " + str(cluster_i) + " to sequence " + str(cluster_j))
             aligned_seq1, aligned_seq2, _, _ = needleman_wunsch(cluster_i[0], cluster_j[0], scoring_matrix)
+            print("aligned_seq1: " + str(aligned_seq1))
+            print("aligned_seq2: " + str(aligned_seq2) + "\n")
             clusters[idx_i] = [aligned_seq1]
             clusters[idx_j] = [aligned_seq2]
         elif len(cluster_i) > 1 and len(cluster_j) == 1:
             # MSA to sequence alignment
-            print(f"Alignment Type: MSA " + str(cluster_i) + " to sequence " + str(cluster_j) + "\n")
+            print(f"Alignment Type: MSA " + str(cluster_i) + " to sequence " + str(cluster_j))
             aligned_seq, aligned_msa = align_sequence_with_msa(cluster_j[0], cluster_i, scoring_matrix)
+            print("aligned_seq: " + str(aligned_seq))
+            print("aligned_msa: " + str(aligned_msa) + "\n")
             clusters[idx_j] = [aligned_seq]
             clusters[idx_i] = aligned_msa
         elif len(cluster_i) == 1 and len(cluster_j) > 1:
             # Sequence to MSA alignment
-            print(f"Alignment Type: sequence " + str(cluster_i) + " to MSA " + str(cluster_j) + "\n")
+            print(f"Alignment Type: sequence " + str(cluster_i) + " to MSA " + str(cluster_j))
             aligned_seq, aligned_msa = align_sequence_with_msa(cluster_i[0], cluster_j, scoring_matrix)
+            print("aligned_seq: " + str(aligned_seq))
+            print("aligned_msa: " + str(aligned_msa) + "\n")
             clusters[idx_i] = [aligned_seq]
             clusters[idx_j] = aligned_msa
         else:
             # MSA to MSA alignment
-            print(f"Alignment Type: MSA " + str(cluster_i) + " to MSA " + str(cluster_j) + "\n")
+            print(f"Alignment Type: MSA " + str(cluster_i) + " to MSA " + str(cluster_j))
             aligned_msa1, aligned_msa2 = align_msa_with_msa(cluster_i, cluster_j, scoring_matrix)
+            print("aligned_msa1: " + str(aligned_msa1))
+            print("aligned_msa2: " + str(aligned_msa2) + "\n")
             clusters[idx_i] = aligned_msa1
             clusters[idx_j] = aligned_msa2
 
@@ -325,7 +336,6 @@ def progressive_alignment(sequences, guide_tree, scoring_matrix):
     final_msa = [seq for cluster in clusters if cluster for seq in cluster]
     final_msa = replace_xs_with_gaps(final_msa)
     return final_msa
-
 
 def sum_of_pairs(final_msa, scoring_matrix):
     score = 0
