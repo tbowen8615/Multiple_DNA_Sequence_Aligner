@@ -68,7 +68,7 @@ def print_scoring_matrix(scoring_matrix):
     # Extract unique elements
     elements = sorted(set([key[0] for key in scoring_matrix.keys()] + [key[1] for key in scoring_matrix.keys()]))
     # Print the header row
-    print("\n\nScoring Matrix\n")
+    print("\n\n\nScoring Matrix:\n")
     print("    " + " ".join(f"{el:>4}" for el in elements))
     for el1 in elements:
         row = [f"{el1:>4}"]
@@ -138,45 +138,54 @@ def calculate_normalized_distance(Sa, Smin, Smax):
 
 # Construct guide tree
 def construct_guide_tree(normalized_distance_matrix):
-
-    cluster_sizes = [1] * len(normalized_distance_matrix)
-    labels = [(i,) for i in range(len(normalized_distance_matrix))]  # Initialize labels as tuples containing single integers
-
     guide_tree = []
 
+    # Keep track of the size of each cluster
+    cluster_sizes = [1] * normalized_distance_matrix.shape[0]
+
+    # Labels for each cluster (initially, each point is its own cluster)
+    labels = [(i,) for i in range(normalized_distance_matrix.shape[0])]
+
+    # Repeat the following while the distance matrix size is greater than 1
     while normalized_distance_matrix.shape[0] > 1:
-        # Initialize variables to store the minimum distance and corresponding indices
         min_distance = np.inf
         closest_pair = None
 
-        # Iterate through the upper triangular part of the matrix to find the minimum distance
-        for i in range(len(normalized_distance_matrix)):
-            for j in range(i + 1, len(normalized_distance_matrix)):
-                if normalized_distance_matrix[i, j] < min_distance:
-                    min_distance = normalized_distance_matrix[i, j]
-                    closest_pair = (i, j)
+        # Finding the closest pair
+        for row in range(len(normalized_distance_matrix)):
+            for column in range(row + 1, len(normalized_distance_matrix)):
+                if normalized_distance_matrix[row, column] < min_distance:
+                    min_distance = normalized_distance_matrix[row, column]
+                    closest_pair = (row, column)
 
-        i, j = closest_pair
+        row, column = closest_pair
 
-        # Record the merging order using integer pairs
-        guide_tree.append((labels[i][0], labels[j][0]))
+        # Update guide tree with the merge
+        guide_tree.append((labels[row], labels[column]))
 
-        # Calculate the new distances
-        for k in range(len(normalized_distance_matrix)):
-            if k != i and k != j:
-                normalized_distance_matrix[min(i, k), max(i, k)] = (normalized_distance_matrix[min(i, k), max(i, k)] * cluster_sizes[i] +
-                                                         normalized_distance_matrix[min(j, k), max(j, k)] * cluster_sizes[j]) / (
-                                                                cluster_sizes[i] + cluster_sizes[j])
+        # Calculate the new merged row/column using the weighted average formula
+        for i in range(normalized_distance_matrix.shape[0]):
+            if i != row and i != column:
+                new_distance = (normalized_distance_matrix[min(i, row), max(i, row)] * cluster_sizes[row] +
+                                normalized_distance_matrix[min(i, column), max(i, column)] * cluster_sizes[column]) / (
+                                    cluster_sizes[row] + cluster_sizes[column])
+                normalized_distance_matrix[min(i, row), max(i, row)] = new_distance
 
-        # Merge clusters
-        labels[i] = (labels[i][0], labels[j][0])
-        cluster_sizes[i] += cluster_sizes[j]
+        # Update cluster size and labels
+        cluster_sizes[row] += cluster_sizes[column]
+        labels[row] = labels[row] + labels[column]
 
-        # Remove the merged node's row and column (node j)
-        normalized_distance_matrix = np.delete(normalized_distance_matrix, j, axis=0)
-        normalized_distance_matrix = np.delete(normalized_distance_matrix, j, axis=1)
-        del labels[j]
-        del cluster_sizes[j]
+        # Remove the old row and column corresponding to the second part of the pair
+        normalized_distance_matrix = np.delete(normalized_distance_matrix, column, axis=0)
+        normalized_distance_matrix = np.delete(normalized_distance_matrix, column, axis=1)
+        cluster_sizes.pop(column)
+        labels.pop(column)
+
+        # Print statements for debugging
+        print(f"Closest Pair: {closest_pair}")
+        print("Updated Matrix:\n", normalized_distance_matrix)
+        print("Updated Cluster Sizes:", cluster_sizes)
+        print("Guide Tree:", guide_tree)
 
     return guide_tree
 
@@ -254,48 +263,69 @@ def replace_xs_with_gaps(msa):
     return [seq.replace('X', '-') for seq in msa]
 
 # Progressive Alignment
+def flatten_guide_tree(guide_tree):
+    flat_tree = []
+    for pair in guide_tree:
+        flat_pair = (tuple(sorted(pair[0])), tuple(sorted(pair[1])))
+        flat_tree.append(flat_pair)
+    return flat_tree
+
 def progressive_alignment(sequences, guide_tree, scoring_matrix):
     # Initialize clusters with individual sequences
     clusters = [[seq] for seq in sequences]
+    cluster_map = {i: i for i in range(len(clusters))}
 
-    for (i, j) in guide_tree:
-        # Identify clusters to be aligned
-        cluster_i = clusters[i]
-        cluster_j = clusters[j]
+    # Flatten the guide tree
+    flat_guide_tree = flatten_guide_tree(guide_tree)
+
+    for pair in flat_guide_tree:
+        i, j = pair
+
+        # Find the indices in the current clusters
+        idx_i = cluster_map[i[0]]
+        idx_j = cluster_map[j[0]]
+
+        cluster_i = clusters[idx_i]
+        cluster_j = clusters[idx_j]
 
         if len(cluster_i) == 1 and len(cluster_j) == 1:
             # Sequence to sequence alignment
             print(f"Alignment Type: sequence " + str(cluster_i) + " to sequence " + str(cluster_j) + "\n")
             aligned_seq1, aligned_seq2, _, _ = needleman_wunsch(cluster_i[0], cluster_j[0], scoring_matrix)
-            clusters[i] = [aligned_seq1]
-            clusters[j] = [aligned_seq2]
+            clusters[idx_i] = [aligned_seq1]
+            clusters[idx_j] = [aligned_seq2]
         elif len(cluster_i) > 1 and len(cluster_j) == 1:
             # MSA to sequence alignment
             print(f"Alignment Type: MSA " + str(cluster_i) + " to sequence " + str(cluster_j) + "\n")
             aligned_seq, aligned_msa = align_sequence_with_msa(cluster_j[0], cluster_i, scoring_matrix)
-            clusters[j] = [aligned_seq]
-            clusters[i] = aligned_msa
+            clusters[idx_j] = [aligned_seq]
+            clusters[idx_i] = aligned_msa
         elif len(cluster_i) == 1 and len(cluster_j) > 1:
             # Sequence to MSA alignment
             print(f"Alignment Type: sequence " + str(cluster_i) + " to MSA " + str(cluster_j) + "\n")
             aligned_seq, aligned_msa = align_sequence_with_msa(cluster_i[0], cluster_j, scoring_matrix)
-            clusters[i] = [aligned_seq]
-            clusters[j] = aligned_msa
+            clusters[idx_i] = [aligned_seq]
+            clusters[idx_j] = aligned_msa
         else:
             # MSA to MSA alignment
             print(f"Alignment Type: MSA " + str(cluster_i) + " to MSA " + str(cluster_j) + "\n")
             aligned_msa1, aligned_msa2 = align_msa_with_msa(cluster_i, cluster_j, scoring_matrix)
-            clusters[i] = aligned_msa1
-            clusters[j] = aligned_msa2
+            clusters[idx_i] = aligned_msa1
+            clusters[idx_j] = aligned_msa2
 
         # Merge clusters
-        clusters[i].extend(clusters[j])
-        clusters[j] = []
+        clusters[idx_i].extend(clusters[idx_j])
+        clusters[idx_j] = []
+
+        # Update the cluster map to reflect the merged cluster
+        for item in j:
+            cluster_map[item] = idx_i
 
     # Merge all clusters into a single MSA
     final_msa = [seq for cluster in clusters if cluster for seq in cluster]
     final_msa = replace_xs_with_gaps(final_msa)
     return final_msa
+
 
 def sum_of_pairs(final_msa, scoring_matrix):
     score = 0
@@ -317,7 +347,7 @@ def main():
         scoring_matrix = read_scoring_matrix(scoring_matrix_fp)
 
         # Print the input sequences
-        print("\nInput Sequences\n")
+        print("\nInput Sequences:")
         with open(input_fp,'r') as file:
             for line in file:
                 print(line, end='')
@@ -363,7 +393,7 @@ def main():
             print(f"Normalized Distance: {normalized_distance}")
 
         # Print the alignment score matrix
-        print("\n\nInitial Distance Matrix (uses each pair's Alignment Score)\n")
+        print("\n\nInitial Distance Matrix (uses each pair's Alignment Score):\n")
         for i in range(num_sequences):
             for j in range(num_sequences):
                 if j > i:
@@ -373,7 +403,7 @@ def main():
             print()
 
         # Print Raw normalized_distance_matrix
-        print("\nRaw Normalized Distance Matrix\n")
+        print("\nRaw Normalized Distance Matrix:\n")
         print(normalized_distance_matrix)
         print("\n")
 
@@ -382,12 +412,12 @@ def main():
                 normalized_distance_matrix[i, j] = np.inf
 
         # Print Raw Normalized Score Matrix
-        print("Normalized Distance Matrix (sent to construct_guide_tree)\n")
+        print("Normalized Distance Matrix (sent to construct_guide_tree):\n")
         print(normalized_distance_matrix)
         print("\n")
 
         # Print the normalized score matrix
-        print("\nFormatted Normalized Distance Matrix (uses each pair's Normalized Distance)\n")
+        print("\nFormatted Normalized Distance Matrix (uses each pair's Normalized Distance):\n")
         for i in range(num_sequences):
             for j in range(num_sequences):
                 if j > i:
