@@ -259,14 +259,11 @@ def align_msa_with_msa(msa1, msa2, scoring_matrix):
 
     return aligned_msa1, aligned_msa2
 
-def replace_xs_with_gaps(msa):
-    return [seq.replace('X', '-') for seq in msa]
-
 # Progressive Alignment
 def flatten_guide_tree(guide_tree):
     flat_tree = []
     for pair in guide_tree:
-        flat_pair = (tuple(sorted(pair[0])), tuple(sorted(pair[1])))
+        flat_pair = (tuple(pair[0]), tuple(pair[1]))
         flat_tree.append(flat_pair)
     return flat_tree
 
@@ -334,7 +331,6 @@ def progressive_alignment(sequences, guide_tree, scoring_matrix):
 
     # Merge all clusters into a single MSA
     final_msa = [seq for cluster in clusters if cluster for seq in cluster]
-    final_msa = replace_xs_with_gaps(final_msa)
     return final_msa
 
 def sum_of_pairs(final_msa, scoring_matrix):
@@ -346,7 +342,6 @@ def sum_of_pairs(final_msa, scoring_matrix):
             for l in range(k + 1, len(column)):
                 score += scoring_matrix.get((column[k], column[l]), 0)
     return score
-
 
 def main():
     try:
