@@ -68,14 +68,14 @@ def print_scoring_matrix(scoring_matrix):
     # Extract unique elements
     elements = sorted(set([key[0] for key in scoring_matrix.keys()] + [key[1] for key in scoring_matrix.keys()]))
     # Print the header row
-    print("\n\n\nScoring Matrix:\n")
+    print("Scoring Matrix:\n")
     print("    " + " ".join(f"{el:>4}" for el in elements))
     for el1 in elements:
         row = [f"{el1:>4}"]
         for el2 in elements:
             row.append(f"{scoring_matrix.get((el1, el2), 0):>4}")
         print(" ".join(row))
-    print("\n")
+    print("")
 
 
 # Implement the Needleman-Wunsch optimal global alignment algorithm
@@ -138,6 +138,7 @@ def calculate_normalized_distance(Sa, Smin, Smax):
 
 # Construct guide tree
 def construct_guide_tree(normalized_distance_matrix):
+    print("\nStep 3) Use the Normalized Distance Matrix as input to construct a Guide Tree\n")
     guide_tree = []
 
     # Keep track of the size of each cluster
@@ -185,36 +186,58 @@ def construct_guide_tree(normalized_distance_matrix):
         print(f"Closest Pair: {closest_pair}")
         print("Updated Matrix:\n", normalized_distance_matrix)
         print("Updated Cluster Sizes:", cluster_sizes)
-        print("Guide Tree:", guide_tree)
+        print("Guide Tree:", guide_tree, "\n")
 
     return guide_tree
 
 # Align Sequence to MSA
-def align_sequence_with_msa(seq, msa, scoring_matrix):
+def align_sequence_with_msa(input_seq, msa, scoring_matrix):
     best_score = float('-inf')
     best_alignment = None
     best_msa = None
 
-    for y in msa:
-        align1, align2, score, _ = needleman_wunsch(seq, y, scoring_matrix)
+    # Perform sequence to MSA alignment
+    for sequence in msa:
+        print("      input_sequence: ", input_seq)
+        print("   sequence_from_msa: ", sequence)
+        aligned_input_seq, aligned_seq_from_msa, score, _ = needleman_wunsch(input_seq, sequence, scoring_matrix)
+        print("   aligned_input_seq: ", aligned_input_seq)
+        print("aligned_seq_from_msa: ", aligned_seq_from_msa,)
+        print("               score: ", score)
         if score > best_score:
             best_score = score
-            best_alignment = (align1, align2)
-            best_msa = [align1 if y == seq else y for y in msa]
+            best_alignment = (aligned_input_seq, aligned_seq_from_msa)
+            best_msa = [aligned_input_seq if sequence == input_seq else sequence for sequence in msa]
+            print("\n                best_score: ", best_score)
+            print("            best_alignment: ", best_alignment[0], "\n", "                           ", best_alignment[1], "\n")
 
     # Copy gaps from the best alignment to all sequences in the MSA
+    print("\n\n                        STEP 4 SUBTASK D: Copy gaps from the best alignment to all sequences in the MSA\n")
     aligned_msa = []
-    for y in msa:
+    print("                        aligned_msa: ", aligned_msa, "\n")
+    for sequence in msa:
+        print("                        for sequence in msa: ")
+        print("                                   sequence: ", sequence)
+        print("                                        msa: ", msa, "\n")
         aligned_seq = ''
-        seq_idx = 0
+        seq_index = 0
+        print("                                             aligned_seq: ", aligned_seq)
+        print("                                               seq_index: ", seq_index, "\n")
         for char in best_alignment[1]:
+            print("                                     char: ", char)
+            print("                        best_alignment[1]: ", best_alignment[1], "\n")
             if char == '-':
                 aligned_seq += '-'
+                print("                                              aligned_seq: ", aligned_seq)
+                print("                                                seq_index: ", seq_index, "\n")
             else:
-                aligned_seq += y[seq_idx]
-                seq_idx += 1
+                aligned_seq += sequence[seq_index]
+                seq_index += 1
+                print("                                              aligned_seq: ", aligned_seq)
+                print("                                                seq_index: ", seq_index, "\n")
         aligned_msa.append(aligned_seq)
-
+        print("                              aligned_msa: ", aligned_msa)
+        print("                        best_alignment[0]: ", best_alignment[0], "\n")
     return best_alignment[0], aligned_msa
 
 def align_msa_with_msa(msa1, msa2, scoring_matrix):
@@ -260,87 +283,127 @@ def align_msa_with_msa(msa1, msa2, scoring_matrix):
     return aligned_msa1, aligned_msa2
 
 # Progressive Alignment
-def flatten_guide_tree(guide_tree):
-    flat_tree = []
-    for pair in guide_tree:
-        flat_pair = (tuple(pair[0]), tuple(pair[1]))
-        flat_tree.append(flat_pair)
-    return flat_tree
-
 def progressive_alignment(sequences, guide_tree, scoring_matrix):
+    print("\n\n\nStep 4) Use the Input Sequences, Guide Tree, and Scoring Matrix as input to perform Multiple Sequence Alignment")
+    # Print the input sequences for reference
+    input_fp = sys.argv[sys.argv.index('-i') + 1]
+    print("\nInput Sequences:")
+    with open(input_fp, 'r') as file:
+        for line in file:
+            print(line, end='')
+
+    print("\n\nGuide Tree:")
+    for pair in guide_tree:
+        print(f"{pair}")
+    print()
+
+    print_scoring_matrix(scoring_matrix)
+
     # Initialize clusters with individual sequences
     clusters = [[seq] for seq in sequences]
     cluster_map = {i: i for i in range(len(clusters))}
-    print("clusters: " + str(clusters))
-    print("cluster_map: " + str(cluster_map) + "\n")
 
-    # Flatten the guide tree
-    flat_guide_tree = flatten_guide_tree(guide_tree)
-    print("flat_guide_tree: " + str(flat_guide_tree) + "\n")
-
-    for pair in flat_guide_tree:
-        i, j = pair
+    for pair in guide_tree:
+        print("\n\nSTEP 4 SUBTASK A: Clustering")
+        print("clusters: " + str(clusters))
+        print("cluster_map: " + str(cluster_map))
+        print("Guide Tree pair: " + str(pair))
+        m, n = pair
 
         # Find the indices in the current clusters
-        idx_i = cluster_map[i[0]]
-        idx_j = cluster_map[j[0]]
+        i = cluster_map[m[0]]
+        j = cluster_map[n[0]]
+        print("i: " + str(i))
+        print("j: " + str(j))
 
-        cluster_i = clusters[idx_i]
-        cluster_j = clusters[idx_j]
+        cluster_i = clusters[i]
+        cluster_j = clusters[j]
+        print("cluster[" + str(i) + "]: " + str(cluster_i))
+        print("cluster[" + str(j) + "]: " + str(cluster_j) + "\n")
 
         if len(cluster_i) == 1 and len(cluster_j) == 1:
             # Sequence to sequence alignment
-            print(f"Alignment Type: sequence " + str(cluster_i) + " to sequence " + str(cluster_j))
+            print("        STEP 4 SUBTASK B: Perform sequence to sequence alignment")
+            print(f"        Alignment Type: sequence " + str(cluster_i) + " to sequence " + str(cluster_j) + "\n")
             aligned_seq1, aligned_seq2, _, _ = needleman_wunsch(cluster_i[0], cluster_j[0], scoring_matrix)
-            print("aligned_seq1: " + str(aligned_seq1))
-            print("aligned_seq2: " + str(aligned_seq2) + "\n")
-            clusters[idx_i] = [aligned_seq1]
-            clusters[idx_j] = [aligned_seq2]
+            print("        aligned_seq1: " + str(aligned_seq1))
+            print("        aligned_seq2: " + str(aligned_seq2) + "\n")
+            clusters[i] = [aligned_seq1]
+            clusters[j] = [aligned_seq2]
+            print("        cluster[" + str(i) + "] post alignment: " + str(clusters[i]))
+            print("        cluster[" + str(j) + "] post alignment: " + str(clusters[j]))
+            print("          clusters post alignment:\n        " + str(clusters))
         elif len(cluster_i) > 1 and len(cluster_j) == 1:
             # MSA to sequence alignment
-            print(f"Alignment Type: MSA " + str(cluster_i) + " to sequence " + str(cluster_j))
+            print("        STEP 4 SUBTASK B: Perform MSA to sequence alignment")
+            print(f"        Alignment Type: MSA " + str(cluster_i) + " to sequence " + str(cluster_j) + "\n")
             aligned_seq, aligned_msa = align_sequence_with_msa(cluster_j[0], cluster_i, scoring_matrix)
-            print("aligned_seq: " + str(aligned_seq))
-            print("aligned_msa: " + str(aligned_msa) + "\n")
-            clusters[idx_j] = [aligned_seq]
-            clusters[idx_i] = aligned_msa
+            print("        aligned_seq: " + str(aligned_seq))
+            print("        aligned_msa: " + str(aligned_msa) + "\n")
+            clusters[j] = [aligned_seq]
+            clusters[i] = aligned_msa
+            print("        cluster[" + str(i) + "] post alignment: " + str(clusters[i]))
+            print("        cluster[" + str(j) + "] post alignment: " + str(clusters[j]))
+            print("          clusters post alignment:\n        " + str(clusters))
         elif len(cluster_i) == 1 and len(cluster_j) > 1:
             # Sequence to MSA alignment
-            print(f"Alignment Type: sequence " + str(cluster_i) + " to MSA " + str(cluster_j))
+            print("        STEP 4 SUBTASK B: Perform sequence to MSA alignment")
+            print(f"        Alignment Type: sequence " + str(cluster_i) + " to MSA " + str(cluster_j) +"\n")
             aligned_seq, aligned_msa = align_sequence_with_msa(cluster_i[0], cluster_j, scoring_matrix)
-            print("aligned_seq: " + str(aligned_seq))
-            print("aligned_msa: " + str(aligned_msa) + "\n")
-            clusters[idx_i] = [aligned_seq]
-            clusters[idx_j] = aligned_msa
+            print("        aligned_seq: " + str(aligned_seq))
+            print("        aligned_msa: " + str(aligned_msa) + "\n")
+            clusters[i] = [aligned_seq]
+            clusters[j] = aligned_msa
+            print("        cluster[" + str(i) + "] post alignment: " + str(clusters[i]))
+            print("        cluster[" + str(j) + "] post alignment: " + str(clusters[j]))
+            print("          clusters post alignment:\n        " + str(clusters))
         else:
             # MSA to MSA alignment
-            print(f"Alignment Type: MSA " + str(cluster_i) + " to MSA " + str(cluster_j))
+            print("        STEP 4 SUBTASK B: Perform MSA to MSA alignment")
+            print(f"        Alignment Type: MSA " + str(cluster_i) + " to MSA " + str(cluster_j) + "\n")
             aligned_msa1, aligned_msa2 = align_msa_with_msa(cluster_i, cluster_j, scoring_matrix)
-            print("aligned_msa1: " + str(aligned_msa1))
-            print("aligned_msa2: " + str(aligned_msa2) + "\n")
-            clusters[idx_i] = aligned_msa1
-            clusters[idx_j] = aligned_msa2
+            print("        aligned_msa1: " + str(aligned_msa1))
+            print("        aligned_msa2: " + str(aligned_msa2) + "\n")
+            clusters[i] = aligned_msa1
+            clusters[j] = aligned_msa2
+            print("        cluster[" + str(i) + "] post alignment: " + str(clusters[i]))
+            print("        cluster[" + str(j) + "] post alignment: " + str(clusters[j]))
+            print("          clusters post alignment:\n        " + str(clusters))
 
         # Merge clusters
-        clusters[idx_i].extend(clusters[idx_j])
-        clusters[idx_j] = []
+        print("\n                STEP 4 SUBTASK C: Merge cluster[i] and cluster[j]")
+        clusters[i].extend(clusters[j])
+        clusters[j] = []
+        print("                cluster[" + str(i) + "] after merge: " + str(clusters[i]))
+        print("                cluster[" + str(j) + "] after merge: " + str(clusters[j]))
+        print("                  clusters after merge:\n                " + str(clusters))
 
         # Update the cluster map to reflect the merged cluster
-        for item in j:
-            cluster_map[item] = idx_i
+        for item in n:
+            print("\n                Update cluster_map: " + str(cluster_map))
+            print("                item: " + str(item))
+            cluster_map[item] = i
+            print("                cluster_map[item]: " + str(cluster_map[item]))
+            print("                New cluster_map: " + str(cluster_map) + "\n")
 
     # Merge all clusters into a single MSA
     final_msa = [seq for cluster in clusters if cluster for seq in cluster]
+    print("\nfinal_msa: " + str(final_msa))
     return final_msa
 
 def sum_of_pairs(final_msa, scoring_matrix):
     score = 0
-    m = len(final_msa[0])
-    for i in range(m):
-        column = [seq[i] for seq in final_msa]
-        for k in range(len(column)):
-            for l in range(k + 1, len(column)):
-                score += scoring_matrix.get((column[k], column[l]), 0)
+    # print("\nscore: " + str(score) + "\n")
+    num_of_columns = len(final_msa[0])
+    for column_index in range(num_of_columns):
+        column = [seq[column_index] for seq in final_msa]
+        for pair_element_1 in range(len(column)):
+            for pair_element_2 in range(pair_element_1 + 1, len(column)):
+                score += scoring_matrix.get((column[pair_element_1], column[pair_element_2]), 0)
+                # print("pair_element_1: " + str(column[pair_element_1]))
+                # print("pair_element_2: " + str(column[pair_element_2]))
+                # print("Change in Score: " + str(scoring_matrix.get((column[pair_element_1], column[pair_element_2]), 0)))
+                # print("\nscore: " + str(score) + "\n")
     return score
 
 def main():
@@ -356,6 +419,7 @@ def main():
         with open(input_fp,'r') as file:
             for line in file:
                 print(line, end='')
+        print("\n")
 
 
         # Print the scoring matrix
@@ -384,13 +448,13 @@ def main():
             aligned_pairs.append((i, j, align1, align2, score, normalized_distance, alignment_length, Smin_scaled, Smax_scaled))
 
         # Print each aligned pair
-        print("\nAligned sequence pairs:")
+        print("\n\nStep 1) Align all possible sequence pairs:")
         for (
                 i, j, align1, align2, score, normalized_distance, alignment_length, Smin_scaled,
                 Smax_scaled) in aligned_pairs:
-            print(f"\nAlignment of {headers[i]} and {headers[j]}:")
-            print(f"{headers[i]}: {align1}")
-            print(f"{headers[j]}: {align2}")
+            print(f"\nAlignment Pair: {headers[i]} and {headers[j]}:")
+            print(f"Aligned Sequence {headers[i]}: {align1}")
+            print(f"Aligned Sequence {headers[j]}: {align2}")
             print(f"Alignment Score: {score}")
             print(f"Alignment Length: {alignment_length}")
             print(f"Min Possible Alignment Score: {Smin_scaled}")
@@ -398,7 +462,8 @@ def main():
             print(f"Normalized Distance: {normalized_distance}")
 
         # Print the alignment score matrix
-        print("\n\nInitial Distance Matrix (uses each pair's Alignment Score):\n")
+        print("\n\n\nStep 2) Construct a Normalized Distance Matrix:")
+        print("\nInitial Distance Matrix (uses each Alignment Pair's Alignment Score):\n")
         for i in range(num_sequences):
             for j in range(num_sequences):
                 if j > i:
@@ -407,22 +472,13 @@ def main():
                     print("     ", end=" ")
             print()
 
-        # Print Raw normalized_distance_matrix
-        print("\nRaw Normalized Distance Matrix:\n")
-        print(normalized_distance_matrix)
-        print("\n")
-
+        # Replace lower triangular portion including diagonal of normalized_distance_matrix with inf
         for i in range(num_sequences):
             for j in range(i + 1):
                 normalized_distance_matrix[i, j] = np.inf
 
-        # Print Raw Normalized Score Matrix
-        print("Normalized Distance Matrix (sent to construct_guide_tree):\n")
-        print(normalized_distance_matrix)
-        print("\n")
-
-        # Print the normalized score matrix
-        print("\nFormatted Normalized Distance Matrix (uses each pair's Normalized Distance):\n")
+        # Print the normalized distance matrix
+        print("Normalized Distance Matrix (uses each Alignment Pair's Normalized Distance):\n")
         for i in range(num_sequences):
             for j in range(num_sequences):
                 if j > i:
@@ -431,13 +487,17 @@ def main():
                     print(f"{'':>10}", end=" ")
             print()
 
+        # Print Raw Normalized Score Matrix
+        print("Normalized Distance Matrix (sent to construct_guide_tree):\n")
+        print(normalized_distance_matrix)
+        print("\n")
+
         guide_tree = construct_guide_tree(normalized_distance_matrix)
 
         # Print the guide tree
-        print("\nGuide Tree:")
+        print("Guide Tree:")
         for pair in guide_tree:
             print(f"{pair}")
-        print("\n")
 
         final_msa = progressive_alignment(sequences, guide_tree, scoring_matrix)
 
