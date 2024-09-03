@@ -11,3 +11,5 @@ You will specify an output FASTA file that the final alignment will be written t
 MSA_expected_output.fasta is the correct expected output when using the provided input FASTA file and BLOSUM50 scoring matrix. Comparing this file to the output ensures program correctness.  
   
 notepad is a good way to view these files
+
+Currently there is a sneaky bug occurring regarding the copying of gaps into the final_msa. I am working on a fix.
