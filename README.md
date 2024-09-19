@@ -12,4 +12,4 @@ MSA_expected_output.fasta is the correct expected output when using the provided
   
 notepad is a good way to view these files
 
-Currently there is a sneaky bug occurring regarding the copying of gaps into the final_msa. I am working on a fix.
+Currently there is a sneaky bug occurring regarding the copying of gaps into the final_msa. I am working on a fix. It is something very nuanced. I am currently getting a final alignment score of -48 and the correct final alignment score should be -50. Continually working to figure this out. However, the output currently generated seems like a reasonable final alignment with many matches.
